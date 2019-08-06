@@ -1,0 +1,135 @@
+---
+title: "Practical Machine Learning Assignment"
+author: "Oleg Solomin"
+date: "01 08 2019"
+output: html_document
+---
+# Prediction Assignment Writeup 
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: `http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har` (see the section on the Weight Lifting Exercise Dataset).
+
+## Data
+
+The training data for this project are available here:
+
+`https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv`
+
+The test data are available here:
+
+`https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv`
+
+## Reading Data to Dataframes
+
+```{r Read_tables}
+trainData <- read.table("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", header=TRUE, sep=",")
+testData<-read.table("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", header=TRUE, sep=",")
+
+dim(trainData)
+dim(testData)
+```
+
+# The Goal of the project
+
+The goal of the project is to predict the manner in which they did the exercise. This is the `"classe"` variable in the training set. 
+
+`Class A` corresponds to **the specified execution** of the exercise, while the other 4 classes correspond to common mistakes: 
+
+* throwing the elbows to the front `Class B`, 
+* lifting the dumbbell only halfway `Class C`, 
+* lowering the dumbbell only halfway `Class D` 
+* and throwing the hips to the front `Class E`. 
+
+Participants were supervised by an experienced weight lifter to make sure the execution complied to the manner they were supposed to simulate. The exercises were performed by six male participants aged between 20-28 years, with little weight lifting experience. We made sure that all participants could easily simulate the mistakes in a safe and controlled manner by using a relatively light dumbbell (1.25kg).
+
+Read more: `http://groupware.les.inf.puc-rio.br/har#ixzz5vLiNEmTu`
+
+## Before we start
+
+Need some packages
+
+```{r Libraries}
+suppressMessages(library(tidyverse))
+suppressMessages(library(caret))
+suppressMessages(library(randomForest))
+suppressMessages(library(rpart))
+```
+
+# Cleaning Data
+
+1. Throwing columns (our unlucky covariates) with NA
+
+``` {r cleaning1}
+cleanData<-trainData[, colSums(is.na(trainData))==0]
+dim(cleanData)
+```
+
+2. Throwing columns with low variance
+
+```{r cleaning2}
+NZV <- nearZeroVar(cleanData)
+cleanData<-cleanData[,-NZV]
+dim(cleanData)
+```
+
+3. Throwing columns with meaningless data (first six with names, time stamps and so on) and convert all columns to numeric (except output)
+
+```{r cleaning3}
+cleanData<- cleanData %>% select(7:length(cleanData))
+cleanData[,1:52]<-sapply(cleanData[,1:52], as.numeric)
+dim(cleanData)
+```
+
+# Splitting Training Data
+
+That's not a joke. We need to split training data (file `pml-training.csv`) into training and testing set. Let it be 70 to 30 ratio.
+
+```{r Splitting_data}
+inTrain  <- createDataPartition(cleanData$classe, p=0.7, list=FALSE)
+TrainSet <- cleanData[inTrain, ]
+TestSet  <- cleanData[-inTrain, ]
+```
+
+# Models
+We are using prediction models: 
+* Decision Tree,
+* Random Forest, 
+* Generalized Boosted Model
+
+## Decision Tree
+```{r Tree}
+set.seed(12345)
+modTree <- rpart(classe ~ ., data=TrainSet, method="class")
+predictTree <- predict(modTree, newdata=TestSet, type="class")
+confMatTree <- confusionMatrix(predictTree, TestSet$classe)
+confMatTree
+```
+
+## Random Forest
+```{r Random Forest}
+set.seed(12345)
+modRF <- train(classe ~ ., data=TrainSet, method="rf")
+modRF$finalModel
+predictRF <- predict(modRF, newdata=TestSet)
+confMatRF <- confusionMatrix(predictRF, TestSet$classe)
+confMatRF
+```
+
+## Boosting with trees
+```{r Gradient Boosting Machine}
+set.seed(12345)
+modGBM  <- train(classe ~ ., data=TrainSet, method = "gbm", verbose = FALSE)
+predictGBM <- predict(modGBM, newdata=TestSet)
+confMatGBM <- confusionMatrix(predictGBM, TestSet$classe)
+confMatGBM
+```
+
+# Final Prediction
+We have three models with different Accuracy-ratio.
+And the winner is...
+`*Random Forest*`
+
+```{r Final Prediction}
+predictTEST <- predict(modRF, newdata=testData)
+predictTEST
+```
