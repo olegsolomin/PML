@@ -35,9 +35,12 @@ The goal of the project is to predict the manner in which they did the exercise.
 
 `Class A` corresponds to **the specified execution** of the exercise, while the other 4 classes correspond to common mistakes: 
 
-* throwing the elbows to the front `Class B`, 
+* throwing the elbows to the front `Class B`,
+
 * lifting the dumbbell only halfway `Class C`, 
-* lowering the dumbbell only halfway `Class D` 
+
+* lowering the dumbbell only halfway `Class D`,
+
 * and throwing the hips to the front `Class E`. 
 
 Participants were supervised by an experienced weight lifter to make sure the execution complied to the manner they were supposed to simulate. The exercises were performed by six male participants aged between 20-28 years, with little weight lifting experience. We made sure that all participants could easily simulate the mistakes in a safe and controlled manner by using a relatively light dumbbell (1.25kg).
@@ -91,9 +94,12 @@ TestSet  <- cleanData[-inTrain, ]
 ```
 
 # Models
-We are using prediction models: 
+We are using prediction models:
+
 * Decision Tree,
+
 * Random Forest, 
+
 * Generalized Boosted Model
 
 ## Decision Tree
@@ -108,7 +114,8 @@ confMatTree
 ## Random Forest
 ```{r Random Forest}
 set.seed(12345)
-modRF <- train(classe ~ ., data=TrainSet, method="rf")
+trcon<-trainControl(method="repeatedcv",number=10, repeats=3, verboseIter=FALSE)
+modRF <- train(classe ~ ., data=TrainSet, method="rf", trControl=trcon)
 modRF$finalModel
 predictRF <- predict(modRF, newdata=TestSet)
 confMatRF <- confusionMatrix(predictRF, TestSet$classe)
@@ -118,7 +125,8 @@ confMatRF
 ## Boosting with trees
 ```{r Gradient Boosting Machine}
 set.seed(12345)
-modGBM  <- train(classe ~ ., data=TrainSet, method = "gbm", verbose = FALSE)
+trcon<-trainControl(method="repeatedcv",number=10, repeats=3, verboseIter=FALSE)
+modGBM  <- train(classe ~ ., data=TrainSet, method = "gbm", verbose = FALSE, trControl=trcon)
 predictGBM <- predict(modGBM, newdata=TestSet)
 confMatGBM <- confusionMatrix(predictGBM, TestSet$classe)
 confMatGBM
@@ -127,7 +135,8 @@ confMatGBM
 # Final Prediction
 We have three models with different Accuracy-ratio.
 And the winner is...
-`*Random Forest*`
+
+*`Random Forest`*
 
 ```{r Final Prediction}
 predictTEST <- predict(modRF, newdata=testData)
